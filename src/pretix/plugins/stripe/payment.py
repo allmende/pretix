@@ -17,6 +17,7 @@ from pretix.base.settings import SettingsSandbox
 from pretix.helpers.urls import build_absolute_uri as build_global_uri
 from pretix.multidomain.urlreverse import build_absolute_uri
 from pretix.plugins.stripe.models import ReferencedStripeObject
+from pretix.presale.views.cart import cart_session
 
 logger = logging.getLogger('pretix.plugins.stripe')
 
@@ -475,6 +476,7 @@ class StripeGiropay(StripeMethod):
         ])
 
     def _create_source(self, request, order):
+        cs = cart_session(request)
         try:
             source = stripe.Source.create(
                 type='giropay',
@@ -486,7 +488,7 @@ class StripeGiropay(StripeMethod):
                     'code': order.code
                 },
                 owner={
-                    'name': request.session.get('payment_stripe_giropay_account') or ugettext('unknown name')
+                    'name': cs.get('payment_stripe_giropay_account') or ugettext('unknown name')
                 },
                 giropay={
                     'statement_descriptor': ugettext('{event}-{code}').format(
@@ -503,18 +505,21 @@ class StripeGiropay(StripeMethod):
             )
             return source
         finally:
-            if 'payment_stripe_giropay_account' in request.session:
-                del request.session['payment_stripe_giropay_account']
+            cs = cart_session(request)
+            if 'payment_stripe_giropay_account' in cs:
+                del cs['payment_stripe_giropay_account']
 
     def payment_is_valid_session(self, request):
+        cs = cart_session(request)
         return (
-            request.session.get('payment_stripe_giropay_account', '') != ''
+            cs.get('payment_stripe_giropay_account', '') != ''
         )
 
     def checkout_prepare(self, request, cart):
         form = self.payment_form(request)
+        cs = cart_session(request)
         if form.is_valid():
-            request.session['payment_stripe_giropay_account'] = form.cleaned_data['account']
+            cs['payment_stripe_giropay_account'] = form.cleaned_data['account']
             return True
         return False
 
@@ -630,6 +635,7 @@ class StripeBancontact(StripeMethod):
         ])
 
     def _create_source(self, request, order):
+        cs = cart_session(request)
         try:
             source = stripe.Source.create(
                 type='bancontact',
@@ -641,7 +647,7 @@ class StripeBancontact(StripeMethod):
                     'code': order.code
                 },
                 owner={
-                    'name': request.session.get('payment_stripe_bancontact_account') or ugettext('unknown name')
+                    'name': cs.get('payment_stripe_bancontact_account') or ugettext('unknown name')
                 },
                 bancontact={
                     'statement_descriptor': ugettext('{event}-{code}').format(
@@ -658,18 +664,21 @@ class StripeBancontact(StripeMethod):
             )
             return source
         finally:
-            if 'payment_stripe_bancontact_account' in request.session:
-                del request.session['payment_stripe_bancontact_account']
+            cs = cart_session(request)
+            if 'payment_stripe_bancontact_account' in cs:
+                del cs['payment_stripe_bancontact_account']
 
     def payment_is_valid_session(self, request):
+        cs = cart_session(request)
         return (
-            request.session.get('payment_stripe_bancontact_account', '') != ''
+            cs.get('payment_stripe_bancontact_account', '') != ''
         )
 
     def checkout_prepare(self, request, cart):
         form = self.payment_form(request)
+        cs = cart_session(request)
         if form.is_valid():
-            request.session['payment_stripe_bancontact_account'] = form.cleaned_data['account']
+            cs['payment_stripe_bancontact_account'] = form.cleaned_data['account']
             return True
         return False
 
@@ -703,6 +712,7 @@ class StripeSofort(StripeMethod):
         ])
 
     def _create_source(self, request, order):
+        cs = cart_session(request)
         source = stripe.Source.create(
             type='sofort',
             amount=int(order.total * 100),
@@ -713,7 +723,7 @@ class StripeSofort(StripeMethod):
                 'code': order.code
             },
             sofort={
-                'country': request.session.get('payment_stripe_sofort_bank_country'),
+                'country': cs.get('payment_stripe_sofort_bank_country'),
                 'statement_descriptor': ugettext('{event}-{code}').format(
                     event=self.event.slug.upper(),
                     code=order.code
@@ -729,14 +739,16 @@ class StripeSofort(StripeMethod):
         return source
 
     def payment_is_valid_session(self, request):
+        cs = cart_session(request)
         return (
-            request.session.get('payment_stripe_sofort_bank_country', '') != ''
+            cs.get('payment_stripe_sofort_bank_country', '') != ''
         )
 
     def checkout_prepare(self, request, cart):
+        cs = cart_session(request)
         form = self.payment_form(request)
         if form.is_valid():
-            request.session['payment_stripe_sofort_bank_country'] = form.cleaned_data['bank_country']
+            cs['payment_stripe_sofort_bank_country'] = form.cleaned_data['bank_country']
             return True
         return False
 
